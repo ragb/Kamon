@@ -57,3 +57,6 @@ kamon-dashboard/src/main/angular/vendor/*
 !kamon-dashboard/src/main/angular/vendor/readme.md
 kamon-dashboard/src/main/angular/tools/dist
 kamon-dashboard/src/main/angular/tools/node_modules
+
+#Elasticsearch Test Data
+/data/

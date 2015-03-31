@@ -28,6 +28,7 @@ object Dependencies {
   val slf4jVersion      = "1.7.7"
   val playVersion       = "2.3.8"
   val sigarVersion      = "1.6.5.132"
+  val elasticsearchVersion = "1.4.4"
 
   val sprayJson         = "io.spray"                  %%  "spray-json"            % "1.3.1"
   val sprayJsonLenses   = "net.virtual-void"          %%  "json-lenses"           % "0.6.0"
@@ -56,6 +57,7 @@ object Dependencies {
   val sigarLoader       = "io.kamon"                  %   "sigar-loader"          % "1.6.5-rev001"
   val h2                = "com.h2database"            %   "h2"                    % "1.4.182"
   val el                = "org.glassfish"             %   "javax.el"              % "3.0.0"
+  val elasticsearch     = "org.elasticsearch"         %   "elasticsearch"         % elasticsearchVersion
 
   def compile   (deps: ModuleID*): Seq[ModuleID] = deps map (_ % "compile")
   def provided  (deps: ModuleID*): Seq[ModuleID] = deps map (_ % "provided")
