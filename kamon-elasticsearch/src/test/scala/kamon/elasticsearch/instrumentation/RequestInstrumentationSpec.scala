@@ -16,7 +16,7 @@
 package kamon.elasticsearch.instrumentation
 
 import com.typesafe.config.ConfigFactory
-import kamon.elasticsearch.{ Elasticsearch, ElasticsearchNameGenerator, ElasticErrorProcessor, SlowQueryProcessor }
+import kamon.elasticsearch.{ Elasticsearch, ElasticsearchNameGenerator, ElasticsearchErrorProcessor, SlowRequestProcessor }
 import kamon.metric.TraceMetricsSpec
 import kamon.testkit.BaseKamonSpec
 import kamon.trace.{ Tracer, SegmentCategory }
@@ -24,6 +24,11 @@ import org.elasticsearch.node.NodeBuilder._
 import org.elasticsearch.action._
 import org.elasticsearch.action.index.IndexRequestBuilder
 import org.elasticsearch.indices.InvalidIndexNameException
+import java.util.concurrent.ExecutionException
+import org.elasticsearch.action.index.IndexRequest
+import org.elasticsearch.action.get.GetRequest
+import org.elasticsearch.action.update.UpdateRequest
+import org.elasticsearch.action.delete.DeleteRequest
 
 class RequestInstrumentationSpec extends BaseKamonSpec("elasticsearch-spec") {
   override lazy val config =
@@ -33,13 +38,13 @@ class RequestInstrumentationSpec extends BaseKamonSpec("elasticsearch-spec") {
         |   elasticsearch {
         |     slow-query-threshold = 100 milliseconds
         |
-        |     # Fully qualified name of the implementation of kamon.elasticsearch.SlowQueryProcessor.
-        |     slow-query-processor = kamon.elasticsearch.instrumentation.NoOpSlowQueryProcessor
+        |     # Fully qualified name of the implementation of kamon.elasticsearch.SlowRequestProcessor.
+        |     slow-query-processor = kamon.elasticsearch.instrumentation.NoOpSlowRequestProcessor
         |
-        |     # Fully qualified name of the implementation of kamon.elasticsearch.SqlErrorProcessor.
-        |     elasticsearch-error-processor = kamon.elasticsearch.instrumentation.NoOpElasticErrorProcessor
+        |     # Fully qualified name of the implementation of kamon.elasticsearch.ElasticsearchErrorProcessor.
+        |     elasticsearch-error-processor = kamon.elasticsearch.instrumentation.NoOpElasticsearchErrorProcessor
         |
-        |     # Fully qualified name of the implementation of kamon.elasticsearch.JdbcNameGenerator
+        |     # Fully qualified name of the implementation of kamon.elasticsearch.ElasticsearchNameGenerator
         |     name-generator = kamon.elasticsearch.instrumentation.NoOpElasticsearchNameGenerator
         |   }
         |}
@@ -52,13 +57,12 @@ class RequestInstrumentationSpec extends BaseKamonSpec("elasticsearch-spec") {
     "record the execution time of INDEX operation" in {
       Tracer.withContext(newContext("elasticsearch-trace-index")) {
         for (id ← 1 to 100) {
-          client.prepareIndex("twitter", "tweet", id.toString)
-            .setSource("{" +
+          client.index(new IndexRequest("twitter", "tweet", id.toString)
+            .source("{" +
               "\"user\":\"kimchy\"," +
               "\"postDate\":\"2013-01-30\"," +
               "\"message\":\"trying out Elasticsearch\"" +
-              "}")
-            .execute().actionGet()
+              "}")).get()
         }
 
         Tracer.currentContext.finish()
@@ -82,7 +86,7 @@ class RequestInstrumentationSpec extends BaseKamonSpec("elasticsearch-spec") {
     "record the execution time of GET operation" in {
       Tracer.withContext(newContext("elasticsearch-trace-get")) {
         for (id ← 1 to 100) {
-          client.prepareGet("twitter", "tweet", id.toString).execute().actionGet()
+          client.get(new GetRequest("twitter", "tweet", id.toString)).get()
         }
 
         Tracer.currentContext.finish()
@@ -106,11 +110,12 @@ class RequestInstrumentationSpec extends BaseKamonSpec("elasticsearch-spec") {
     "record the execution time of UPDATE operation" in {
       Tracer.withContext(newContext("elasticsearch-trace-update")) {
         for (id ← 1 to 100) {
-          client.prepareUpdate("twitter", "tweet", id.toString)
-            .setDoc("{" +
-              "\"updated\":\"updated\"" +
-              "}")
-            .execute().actionGet()
+          client.update(
+            new UpdateRequest("twitter", "tweet", id.toString)
+              .doc("{" +
+                "\"updated\":\"updated\"" +
+                "}"))
+            .get()
         }
 
         Tracer.currentContext.finish()
@@ -134,7 +139,7 @@ class RequestInstrumentationSpec extends BaseKamonSpec("elasticsearch-spec") {
     "record the execution time of DELETE operation" in {
       Tracer.withContext(newContext("elasticsearch-trace-delete")) {
         for (id ← 1 to 100) {
-          client.prepareDelete("twitter", "tweet", id.toString).execute().actionGet()
+          client.delete(new DeleteRequest("twitter", "tweet", id.toString)).get()
         }
 
         Tracer.currentContext.finish()
@@ -175,8 +180,8 @@ class RequestInstrumentationSpec extends BaseKamonSpec("elasticsearch-spec") {
     "count all ERRORS" in {
       Tracer.withContext(newContext("elasticsearch-trace-errors")) {
         for (id ← 1 to 10) {
-          intercept[InvalidIndexNameException] {
-            client.prepareDelete("index name with spaces", "tweet", id.toString).execute().actionGet()
+          intercept[ExecutionException] {
+            client.delete(new DeleteRequest("index name with spaces", "tweet", id.toString)).get()
           }
         }
 
@@ -189,11 +194,11 @@ class RequestInstrumentationSpec extends BaseKamonSpec("elasticsearch-spec") {
   }
 }
 
-class NoOpSlowQueryProcessor extends SlowQueryProcessor {
+class NoOpSlowRequestProcessor extends SlowRequestProcessor {
   override def process(request: ActionRequest[_], executionTimeInMillis: Long, queryThresholdInMillis: Long): Unit = { /*do nothing!!!*/ }
 }
 
-class NoOpElasticErrorProcessor extends ElasticErrorProcessor {
+class NoOpElasticsearchErrorProcessor extends ElasticsearchErrorProcessor {
   override def process(request: ActionRequest[_], ex: Throwable): Unit = { /*do nothing!!!*/ }
 }
 

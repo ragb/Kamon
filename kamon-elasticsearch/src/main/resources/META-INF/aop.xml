@@ -6,6 +6,6 @@
   </aspects>
 
     <weaver>
-       <include within="org.elasticsearch.action.ActionRequestBuilder..*"/>
+       <include within="org.elasticsearch.client..*"/>
    </weaver>
 </aspectj>

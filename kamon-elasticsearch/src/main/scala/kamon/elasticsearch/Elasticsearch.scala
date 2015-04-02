@@ -35,10 +35,10 @@ class ElasticsearchExtension(system: ExtendedActorSystem) extends Kamon.Extensio
   private val nameGenerator: ElasticsearchNameGenerator = system.dynamicAccess.createInstanceFor[ElasticsearchNameGenerator](nameGeneratorFQN, Nil).get
 
   private val slowQueryProcessorClass = config.getString("slow-query-processor")
-  private val slowQueryProcessor: SlowQueryProcessor = system.dynamicAccess.createInstanceFor[SlowQueryProcessor](slowQueryProcessorClass, Nil).get
+  private val slowQueryProcessor: SlowRequestProcessor = system.dynamicAccess.createInstanceFor[SlowRequestProcessor](slowQueryProcessorClass, Nil).get
 
   private val elasticsearchErrorProcessorClass = config.getString("elasticsearch-error-processor")
-  private val elasticsearchErrorProcessor: ElasticErrorProcessor = system.dynamicAccess.createInstanceFor[ElasticErrorProcessor](elasticsearchErrorProcessorClass, Nil).get
+  private val elasticsearchErrorProcessor: ElasticsearchErrorProcessor = system.dynamicAccess.createInstanceFor[ElasticsearchErrorProcessor](elasticsearchErrorProcessorClass, Nil).get
 
   val slowQueryThreshold = config.getFiniteDuration("slow-query-threshold").toMillis
 
@@ -47,11 +47,11 @@ class ElasticsearchExtension(system: ExtendedActorSystem) extends Kamon.Extensio
   def generateElasticsearchSegmentName(request: ActionRequest[_]): String = nameGenerator.generateElasticsearchSegmentName(request)
 }
 
-trait SlowQueryProcessor {
+trait SlowRequestProcessor {
   def process(request: ActionRequest[_], executionTime: Long, queryThreshold: Long): Unit
 }
 
-trait ElasticErrorProcessor {
+trait ElasticsearchErrorProcessor {
   def process(request: ActionRequest[_], ex: Throwable): Unit
 }
 
@@ -63,7 +63,7 @@ class DefaultElasticsearchNameGenerator extends ElasticsearchNameGenerator {
   def generateElasticsearchSegmentName(request: ActionRequest[_]): String = s"Elasticsearch[${request.getClass.getSimpleName}]"
 }
 
-class DefaultElasticsearchErrorProcessor extends ElasticErrorProcessor {
+class DefaultElasticsearchErrorProcessor extends ElasticsearchErrorProcessor {
 
   import org.slf4j.LoggerFactory
 
@@ -74,10 +74,10 @@ class DefaultElasticsearchErrorProcessor extends ElasticErrorProcessor {
   }
 }
 
-class DefaultSlowQueryProcessor extends SlowQueryProcessor {
+class DefaultSlowRequestProcessor extends SlowRequestProcessor {
   import org.slf4j.LoggerFactory
 
-  val log = LoggerFactory.getLogger(classOf[DefaultSlowQueryProcessor])
+  val log = LoggerFactory.getLogger(classOf[DefaultSlowRequestProcessor])
 
   override def process(request: ActionRequest[_], executionTimeInMillis: Long, queryThresholdInMillis: Long): Unit = {
     log.warn(s"The request [$request] took $executionTimeInMillis ms and the slow query threshold is $queryThresholdInMillis ms")
