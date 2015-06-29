@@ -1,1 +1,1 @@
-version in ThisBuild := "0.4.1-eqeris"
+version in ThisBuild := "0.4.1-customTracing"
